@@ -1,0 +1,44 @@
+version: '3'
+
+volumes:
+  mysql-data:
+    driver: local
+  keycloak-data-volume:
+    driver: local
+
+services:
+
+  mysql:
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
+      BACKEND_DB_NAME: ${BACKEND_DB_NAME}
+      BACKEND_DB_USER: ${BACKEND_DB_USER}
+      BACKEND_DB_PASS: ${BACKEND_DB_PASS}
+      KEYCLOAK_DB_NAME: ${KEYCLOAK_DB_NAME}
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER}
+      KEYCLOAK_DB_PASS: ${KEYCLOAK_DB_PASS}
+    volumes:
+      - ./mysql/init_users_and_databases.sh:/docker-entrypoint-initdb.d/init_users_and_databases.sh
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "${MYSQL_PORT}:3306"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:15.0.2
+    environment:
+      KEYCLOAK_IMPORT: /opt/jboss/keycloak/imports/realm-export.json -Dkeycloak.profile.feature.upload_scripts=enabled
+      DB_VENDOR: MYSQL
+      DB_ADDR: mysql
+      DB_DATABASE: ${KEYCLOAK_DB_NAME}
+      DB_USER: ${KEYCLOAK_DB_USER}
+      DB_PASSWORD: ${KEYCLOAK_DB_PASS}
+      KEYCLOAK_USER: ${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_ADMIN_PASS}
+    volumes:
+      - keycloak-data-volume:/var/lib/keycloak/data
+      - ./keycloak/realm-export.json:/opt/jboss/keycloak/imports/realm-export.json
+    ports:
+      - "${KEYCLOAK_PORT}:8080"
+    depends_on:
+      - mysql
